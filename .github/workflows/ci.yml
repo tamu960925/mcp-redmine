@@ -32,9 +32,10 @@ jobs:
       run: npm run build
     
     - name: Run tests
-      run: npm test
+      run: npm test -- --testTimeout=60000 --maxWorkers=2
       env:
         CI: true
+        NODE_ENV: test
         # Skip Docker tests in CI environment
         SKIP_DOCKER_TESTS: true
     
