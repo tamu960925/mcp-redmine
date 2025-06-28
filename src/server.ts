@@ -5,6 +5,7 @@ import { RedmineConfig, RedmineIssue } from './types.js';
 import { ValidationError } from './validation.js';
 import { logger } from './logger.js';
 import { RateLimiter, SecurityValidator, RateLimitConfig } from './security.js';
+import { MetricsCollector } from './metrics.js';
 
 export class RedmineMcpServer {
   private config: RedmineConfig;
@@ -12,6 +13,7 @@ export class RedmineMcpServer {
   private redmineClient: RedmineClient;
   private registeredTools: string[] = [];
   private rateLimiter: RateLimiter;
+  private metricsCollector: MetricsCollector;
 
   constructor(config: RedmineConfig) {
     this.validateConfig(config);
@@ -35,10 +37,13 @@ export class RedmineMcpServer {
         'list-projects': 60,
         'get-project': 100,
         'list-users': 60,
-        'get-user': 100
+        'get-user': 100,
+        'health-check': 120,
+        'system-metrics': 60
       }
     };
     this.rateLimiter = new RateLimiter(rateLimitConfig);
+    this.metricsCollector = new MetricsCollector();
     
     this.registerTools();
     logger.info('Redmine MCP Server initialized');
@@ -60,6 +65,8 @@ export class RedmineMcpServer {
     this.registerGetProject();
     this.registerListUsers();
     this.registerGetUser();
+    this.registerHealthCheck();
+    this.registerSystemMetrics();
   }
 
   private registerListIssues(): void {
@@ -331,6 +338,78 @@ export class RedmineMcpServer {
       logger.error('Failed to start Redmine MCP Server', error as Error);
       throw error;
     }
+  }
+
+  private registerHealthCheck(): void {
+    this.mcpServer.registerTool(
+      'health-check',
+      {
+        title: 'System Health Check',
+        description: 'Check the health status of the Redmine MCP server'
+      },
+      async () => {
+        try {
+          await this.rateLimiter.checkRateLimit('health-check');
+          logger.debug('Executing health-check tool');
+          
+          const healthStatus = await this.metricsCollector.getHealthStatus(
+            this.redmineClient,
+            this.registeredTools.length
+          );
+          
+          // Update tools list in health status
+          healthStatus.tools.available = [...this.registeredTools];
+          
+          this.metricsCollector.recordRequest(true);
+          logger.info('Health check completed successfully');
+          
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(healthStatus, null, 2)
+            }]
+          };
+        } catch (error) {
+          this.metricsCollector.recordRequest(false, error instanceof Error && error.message.includes('Rate limit'));
+          logger.error('Error in health-check tool', error as Error);
+          throw error;
+        }
+      }
+    );
+    this.registeredTools.push('health-check');
+  }
+
+  private registerSystemMetrics(): void {
+    this.mcpServer.registerTool(
+      'system-metrics',
+      {
+        title: 'System Metrics',
+        description: 'Get detailed system performance metrics'
+      },
+      async () => {
+        try {
+          await this.rateLimiter.checkRateLimit('system-metrics');
+          logger.debug('Executing system-metrics tool');
+          
+          const systemMetrics = this.metricsCollector.getSystemMetrics();
+          
+          this.metricsCollector.recordRequest(true);
+          logger.info('System metrics collected successfully');
+          
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(systemMetrics, null, 2)
+            }]
+          };
+        } catch (error) {
+          this.metricsCollector.recordRequest(false, error instanceof Error && error.message.includes('Rate limit'));
+          logger.error('Error in system-metrics tool', error as Error);
+          throw error;
+        }
+      }
+    );
+    this.registeredTools.push('system-metrics');
   }
 
   async stop(): Promise<void> {

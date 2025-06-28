@@ -29,9 +29,9 @@ describe('MCP Tools Tests (TDD Implementation)', () => {
   });
 
   describe('Tool Registration', () => {
-    it('should register exactly 8 tools', () => {
+    it('should register exactly 10 tools', () => {
       const tools = server.getRegisteredTools();
-      expect(tools).toHaveLength(8);
+      expect(tools).toHaveLength(10);
     });
 
     it('should register all required Redmine tools', () => {
@@ -65,7 +65,7 @@ describe('MCP Tools Tests (TDD Implementation)', () => {
       
       expect(registeredTools).toBeDefined();
       expect(typeof registeredTools).toBe('object');
-      expect(Object.keys(registeredTools)).toHaveLength(8);
+      expect(Object.keys(registeredTools)).toHaveLength(10);
     });
 
     it('should have properly structured tool definitions', () => {
