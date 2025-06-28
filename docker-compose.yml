@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  redmine-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: redmine-mcp-server:latest
+    container_name: redmine-mcp-server
+    restart: unless-stopped
+    
+    # Environment variables for configuration
+    environment:
+      - REDMINE_BASE_URL=${REDMINE_BASE_URL:-https://demo.redmine.org}
+      - REDMINE_API_KEY=${REDMINE_API_KEY:-your-api-key}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NODE_ENV=production
+    
+    # Health check configuration
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('Health check OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    
+    # Read-only root filesystem for security
+    read_only: true
+    
+    # Temporary filesystems for writable directories
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+      - /app/logs:noexec,nosuid,size=10m
+    
+    # User override (should match Dockerfile USER)
+    user: "1001:1001"
+
+  # Optional: Add a volume for persistent logs
+  # Uncomment if you want persistent logging
+  # volumes:
+  #   redmine-mcp-logs:
+  #     driver: local
+
+# Network configuration
+networks:
+  default:
+    name: redmine-mcp-network
+    driver: bridge
+
+# Volumes (if needed)
+# volumes:
+#   redmine-mcp-logs:

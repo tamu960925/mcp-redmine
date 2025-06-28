@@ -6,6 +6,7 @@ import { ValidationError } from './validation.js';
 import { logger } from './logger.js';
 import { RateLimiter, SecurityValidator, RateLimitConfig } from './security.js';
 import { MetricsCollector } from './metrics.js';
+import { ConfigValidator } from './config-validator.js';
 
 export class RedmineMcpServer {
   private config: RedmineConfig;
@@ -16,8 +17,8 @@ export class RedmineMcpServer {
   private metricsCollector: MetricsCollector;
 
   constructor(config: RedmineConfig) {
-    this.validateConfig(config);
-    this.config = config;
+    // Use ConfigValidator for comprehensive validation
+    this.config = ConfigValidator.validateOrThrow(config);
     this.redmineClient = new RedmineClient(config);
     this.mcpServer = new McpServer({
       name: 'redmine-mcp-server',
