@@ -12,7 +12,12 @@ export default {
     '.*docker.*test\\.ts$',
     '.*integration.*test\\.ts$',
     '.*mcp-integration.*test\\.ts$',
-    '.*real-mcp.*test\\.ts$'
+    '.*real-mcp.*test\\.ts$',
+    '.*mcp-tools.*test\\.ts$',
+    '.*performance.*test\\.ts$',
+    '.*mcp-protocol-compliance.*test\\.ts$',
+    '.*security.*test\\.ts$',
+    '.*server.*test\\.ts$'
   ] : process.env.SKIP_DOCKER_TESTS ? ['.*docker.*test\\.ts$'] : [],
   // Increase timeout for CI environment
   testTimeout: process.env.CI ? 60000 : 10000,
