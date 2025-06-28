@@ -9,6 +9,8 @@ export default {
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   // Skip Docker integration tests in CI environment
   testPathIgnorePatterns: process.env.SKIP_DOCKER_TESTS ? ['.*docker.*test\\.ts$'] : [],
+  // Increase timeout for CI environment
+  testTimeout: process.env.CI ? 30000 : 10000,
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       useESM: true
