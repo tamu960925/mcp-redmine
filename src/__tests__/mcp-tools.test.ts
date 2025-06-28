@@ -10,10 +10,22 @@ describe('MCP Tools Tests', () => {
   let mockRedmineClient: jest.Mocked<RedmineClient>;
 
   beforeEach(() => {
-    mockedAxios.create.mockReturnValue(mockedAxios);
+    const mockAxiosInstance = {
+      get: jest.fn(),
+      post: jest.fn(),
+      put: jest.fn(),
+      delete: jest.fn(),
+      interceptors: {
+        response: {
+          use: jest.fn()
+        }
+      }
+    };
+    mockedAxios.create.mockReturnValue(mockAxiosInstance as any);
+    
     server = new RedmineMcpServer({
       baseUrl: 'https://test.redmine.org',
-      apiKey: 'test-key'
+      apiKey: 'test-api-key'
     });
     
     mockRedmineClient = {
@@ -43,10 +55,10 @@ describe('MCP Tools Tests', () => {
       mockRedmineClient.listIssues.mockResolvedValue(mockResponse);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const listIssuesTool = tools.get('list-issues');
+      const tools = (mcpServer as any)._registeredTools;
+      const listIssuesTool = tools['list-issues'];
 
-      const result = await listIssuesTool.handler({ project_id: 1, limit: 10 });
+      const result = await listIssuesTool.callback({ project_id: 1, limit: 10 });
 
       expect(mockRedmineClient.listIssues).toHaveBeenCalledWith({ project_id: 1, limit: 10 });
       expect(result.content[0].text).toBe(JSON.stringify(mockResponse, null, 2));
@@ -57,10 +69,10 @@ describe('MCP Tools Tests', () => {
       mockRedmineClient.listIssues.mockResolvedValue(mockResponse);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const listIssuesTool = tools.get('list-issues');
+      const tools = (mcpServer as any)._registeredTools;
+      const listIssuesTool = tools['list-issues'];
 
-      const result = await listIssuesTool.handler({});
+      const result = await listIssuesTool.callback({});
 
       expect(mockRedmineClient.listIssues).toHaveBeenCalledWith({});
       expect(result.content[0].text).toBe(JSON.stringify(mockResponse, null, 2));
@@ -78,8 +90,8 @@ describe('MCP Tools Tests', () => {
       mockRedmineClient.createIssue.mockResolvedValue(mockIssue);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const createIssueTool = tools.get('create-issue');
+      const tools = (mcpServer as any)._registeredTools;
+      const createIssueTool = tools['create-issue'];
 
       const issueData = {
         project_id: 1,
@@ -87,7 +99,7 @@ describe('MCP Tools Tests', () => {
         description: 'Test description'
       };
 
-      const result = await createIssueTool.handler(issueData);
+      const result = await createIssueTool.callback(issueData);
 
       expect(mockRedmineClient.createIssue).toHaveBeenCalledWith(issueData);
       expect(result.content[0].text).toBe(JSON.stringify(mockIssue, null, 2));
@@ -105,10 +117,10 @@ describe('MCP Tools Tests', () => {
       mockRedmineClient.getIssue.mockResolvedValue(mockIssue);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const getIssueTool = tools.get('get-issue');
+      const tools = (mcpServer as any)._registeredTools;
+      const getIssueTool = tools['get-issue'];
 
-      const result = await getIssueTool.handler({ id: 1 });
+      const result = await getIssueTool.callback({ id: 1 });
 
       expect(mockRedmineClient.getIssue).toHaveBeenCalledWith(1);
       expect(result.content[0].text).toBe(JSON.stringify(mockIssue, null, 2));
@@ -121,25 +133,25 @@ describe('MCP Tools Tests', () => {
         id: 1,
         project_id: 1,
         subject: 'Updated Issue',
-        status_id: 3
+        description: 'Updated description'
       };
       mockRedmineClient.updateIssue.mockResolvedValue(mockIssue);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const updateIssueTool = tools.get('update-issue');
+      const tools = (mcpServer as any)._registeredTools;
+      const updateIssueTool = tools['update-issue'];
 
       const updateData = {
         id: 1,
         subject: 'Updated Issue',
-        status_id: 3
+        description: 'Updated description'
       };
 
-      const result = await updateIssueTool.handler(updateData);
+      const result = await updateIssueTool.callback(updateData);
 
       expect(mockRedmineClient.updateIssue).toHaveBeenCalledWith(1, {
         subject: 'Updated Issue',
-        status_id: 3
+        description: 'Updated description'
       });
       expect(result.content[0].text).toBe(JSON.stringify(mockIssue, null, 2));
     });
@@ -148,7 +160,7 @@ describe('MCP Tools Tests', () => {
   describe('list-projects tool', () => {
     it('should call RedmineClient.listProjects', async () => {
       const mockResponse = {
-        projects: [{ id: 1, name: 'Test Project', identifier: 'test-project' }],
+        projects: [{ id: 1, name: 'Test Project', identifier: 'test' }],
         total_count: 1,
         offset: 0,
         limit: 25
@@ -156,10 +168,10 @@ describe('MCP Tools Tests', () => {
       mockRedmineClient.listProjects.mockResolvedValue(mockResponse);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const listProjectsTool = tools.get('list-projects');
+      const tools = (mcpServer as any)._registeredTools;
+      const listProjectsTool = tools['list-projects'];
 
-      const result = await listProjectsTool.handler({});
+      const result = await listProjectsTool.callback();
 
       expect(mockRedmineClient.listProjects).toHaveBeenCalled();
       expect(result.content[0].text).toBe(JSON.stringify(mockResponse, null, 2));
@@ -171,15 +183,15 @@ describe('MCP Tools Tests', () => {
       const mockProject = {
         id: 1,
         name: 'Test Project',
-        identifier: 'test-project'
+        identifier: 'test'
       };
       mockRedmineClient.getProject.mockResolvedValue(mockProject);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const getProjectTool = tools.get('get-project');
+      const tools = (mcpServer as any)._registeredTools;
+      const getProjectTool = tools['get-project'];
 
-      const result = await getProjectTool.handler({ id: 1 });
+      const result = await getProjectTool.callback({ id: 1 });
 
       expect(mockRedmineClient.getProject).toHaveBeenCalledWith(1);
       expect(result.content[0].text).toBe(JSON.stringify(mockProject, null, 2));
@@ -194,10 +206,10 @@ describe('MCP Tools Tests', () => {
       mockRedmineClient.getProject.mockResolvedValue(mockProject);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const getProjectTool = tools.get('get-project');
+      const tools = (mcpServer as any)._registeredTools;
+      const getProjectTool = tools['get-project'];
 
-      const result = await getProjectTool.handler({ id: 'test-project' });
+      const result = await getProjectTool.callback({ id: 'test-project' });
 
       expect(mockRedmineClient.getProject).toHaveBeenCalledWith('test-project');
       expect(result.content[0].text).toBe(JSON.stringify(mockProject, null, 2));
@@ -207,7 +219,7 @@ describe('MCP Tools Tests', () => {
   describe('list-users tool', () => {
     it('should call RedmineClient.listUsers', async () => {
       const mockResponse = {
-        users: [{ id: 1, firstname: 'John', lastname: 'Doe' }],
+        users: [{ id: 1, firstname: 'Test', lastname: 'User' }],
         total_count: 1,
         offset: 0,
         limit: 25
@@ -215,10 +227,10 @@ describe('MCP Tools Tests', () => {
       mockRedmineClient.listUsers.mockResolvedValue(mockResponse);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const listUsersTool = tools.get('list-users');
+      const tools = (mcpServer as any)._registeredTools;
+      const listUsersTool = tools['list-users'];
 
-      const result = await listUsersTool.handler({});
+      const result = await listUsersTool.callback();
 
       expect(mockRedmineClient.listUsers).toHaveBeenCalled();
       expect(result.content[0].text).toBe(JSON.stringify(mockResponse, null, 2));
@@ -229,45 +241,44 @@ describe('MCP Tools Tests', () => {
     it('should call RedmineClient.getUser with correct ID', async () => {
       const mockUser = {
         id: 1,
-        login: 'jdoe',
-        firstname: 'John',
-        lastname: 'Doe'
+        firstname: 'Test',
+        lastname: 'User',
+        email: 'test@example.com'
       };
       mockRedmineClient.getUser.mockResolvedValue(mockUser);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const getUserTool = tools.get('get-user');
+      const tools = (mcpServer as any)._registeredTools;
+      const getUserTool = tools['get-user'];
 
-      const result = await getUserTool.handler({ id: 1 });
+      const result = await getUserTool.callback({ id: 1 });
 
       expect(mockRedmineClient.getUser).toHaveBeenCalledWith(1);
       expect(result.content[0].text).toBe(JSON.stringify(mockUser, null, 2));
     });
   });
 
-  describe('error handling in tools', () => {
-    it('should propagate errors from RedmineClient', async () => {
+  describe('error handling', () => {
+    it('should propagate errors from client methods', async () => {
       const error = new Error('API Error');
       mockRedmineClient.listIssues.mockRejectedValue(error);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const listIssuesTool = tools.get('list-issues');
+      const tools = (mcpServer as any)._registeredTools;
+      const listIssuesTool = tools['list-issues'];
 
-      await expect(listIssuesTool.handler({})).rejects.toThrow('API Error');
+      await expect(listIssuesTool.callback({})).rejects.toThrow('API Error');
     });
 
-    it('should handle network timeouts', async () => {
+    it('should handle timeout errors', async () => {
       const timeoutError = new Error('Request timeout');
-      timeoutError.name = 'TIMEOUT';
       mockRedmineClient.getIssue.mockRejectedValue(timeoutError);
 
       const mcpServer = server.getMcpServer();
-      const tools = (mcpServer as any)._tools;
-      const getIssueTool = tools.get('get-issue');
+      const tools = (mcpServer as any)._registeredTools;
+      const getIssueTool = tools['get-issue'];
 
-      await expect(getIssueTool.handler({ id: 1 })).rejects.toThrow('Request timeout');
+      await expect(getIssueTool.callback({ id: 1 })).rejects.toThrow('Request timeout');
     });
   });
 });

@@ -40,7 +40,7 @@ describe('RedmineMcpServer', () => {
           baseUrl: 'https://test.redmine.org',
           apiKey: ''
         });
-      }).toThrow('apiKey is required');
+      }).toThrow('API key cannot be empty');
     });
   });
 

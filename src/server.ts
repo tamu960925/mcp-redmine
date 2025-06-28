@@ -4,12 +4,14 @@ import { RedmineClient } from './redmine-client.js';
 import { RedmineConfig, RedmineIssue } from './types.js';
 import { ValidationError } from './validation.js';
 import { logger } from './logger.js';
+import { RateLimiter, SecurityValidator, RateLimitConfig } from './security.js';
 
 export class RedmineMcpServer {
   private config: RedmineConfig;
   private mcpServer: McpServer;
   private redmineClient: RedmineClient;
   private registeredTools: string[] = [];
+  private rateLimiter: RateLimiter;
 
   constructor(config: RedmineConfig) {
     this.validateConfig(config);
@@ -19,6 +21,25 @@ export class RedmineMcpServer {
       name: 'redmine-mcp-server',
       version: '1.0.0'
     });
+    
+    // Initialize rate limiter
+    const rateLimitConfig: RateLimitConfig = {
+      windowMs: 60000, // 1 minute
+      maxRequests: 1000, // Global limit
+      globalMaxRequests: 1000,
+      toolLimits: {
+        'list-issues': 60,
+        'create-issue': 30,
+        'update-issue': 30,
+        'get-issue': 100,
+        'list-projects': 60,
+        'get-project': 100,
+        'list-users': 60,
+        'get-user': 100
+      }
+    };
+    this.rateLimiter = new RateLimiter(rateLimitConfig);
+    
     this.registerTools();
     logger.info('Redmine MCP Server initialized');
   }
@@ -27,9 +48,7 @@ export class RedmineMcpServer {
     if (!config.baseUrl || config.baseUrl.trim() === '') {
       throw new Error('baseUrl is required');
     }
-    if (!config.apiKey || config.apiKey.trim() === '') {
-      throw new Error('apiKey is required');
-    }
+    SecurityValidator.validateApiKey(config.apiKey);
   }
 
   private registerTools(): void {
@@ -52,6 +71,8 @@ export class RedmineMcpServer {
       },
       async (params) => {
         try {
+          await this.rateLimiter.checkRateLimit('list-issues');
+          SecurityValidator.validateInput(params);
           logger.debug('Executing list-issues tool', { params });
           const result = await this.redmineClient.listIssues(params);
           logger.info(`Listed ${result.issues.length} issues`);
@@ -63,10 +84,11 @@ export class RedmineMcpServer {
           };
         } catch (error) {
           logger.error('Error in list-issues tool', error as Error);
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
           if (error instanceof ValidationError) {
             throw new Error(`Validation error: ${error.message}`);
           }
-          throw error;
+          throw sanitizedError;
         }
       }
     );
@@ -82,6 +104,12 @@ export class RedmineMcpServer {
       },
       async (params) => {
         try {
+          await this.rateLimiter.checkRateLimit('create-issue');
+          SecurityValidator.validateInput(params);
+          SecurityValidator.validateParameterTypes(params, {
+            project_id: 'number',
+            subject: 'string'
+          });
           logger.debug('Executing create-issue tool', { params });
           const issue = await this.redmineClient.createIssue(params as Omit<RedmineIssue, 'id'>);
           logger.info(`Created issue ${issue.id}: ${issue.subject}`);
@@ -93,10 +121,11 @@ export class RedmineMcpServer {
           };
         } catch (error) {
           logger.error('Error in create-issue tool', error as Error);
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
           if (error instanceof ValidationError) {
             throw new Error(`Validation error: ${error.message}`);
           }
-          throw error;
+          throw sanitizedError;
         }
       }
     );
@@ -111,13 +140,23 @@ export class RedmineMcpServer {
         description: 'Get details of a specific issue'
       },
       async (params) => {
-        const issue = await this.redmineClient.getIssue(params.id);
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(issue, null, 2)
-          }]
-        };
+        try {
+          await this.rateLimiter.checkRateLimit('get-issue');
+          SecurityValidator.validateInput(params);
+          SecurityValidator.validateParameterTypes(params, {
+            id: 'number'
+          });
+          const issue = await this.redmineClient.getIssue(params.id);
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(issue, null, 2)
+            }]
+          };
+        } catch (error) {
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
+          throw sanitizedError;
+        }
       }
     );
     this.registeredTools.push('get-issue');
@@ -131,14 +170,24 @@ export class RedmineMcpServer {
         description: 'Update an existing issue in Redmine'
       },
       async (params) => {
-        const { id, ...updateData } = params;
-        const issue = await this.redmineClient.updateIssue(id, updateData);
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(issue, null, 2)
-          }]
-        };
+        try {
+          await this.rateLimiter.checkRateLimit('update-issue');
+          SecurityValidator.validateInput(params);
+          SecurityValidator.validateParameterTypes(params, {
+            id: 'number'
+          });
+          const { id, ...updateData } = params;
+          const issue = await this.redmineClient.updateIssue(id, updateData);
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(issue, null, 2)
+            }]
+          };
+        } catch (error) {
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
+          throw sanitizedError;
+        }
       }
     );
     this.registeredTools.push('update-issue');
@@ -152,13 +201,19 @@ export class RedmineMcpServer {
         description: 'List all projects in Redmine'
       },
       async () => {
-        const result = await this.redmineClient.listProjects();
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }]
-        };
+        try {
+          await this.rateLimiter.checkRateLimit('list-projects');
+          const result = await this.redmineClient.listProjects();
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(result, null, 2)
+            }]
+          };
+        } catch (error) {
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
+          throw sanitizedError;
+        }
       }
     );
     this.registeredTools.push('list-projects');
@@ -172,13 +227,23 @@ export class RedmineMcpServer {
         description: 'Get details of a specific project'
       },
       async (params) => {
-        const project = await this.redmineClient.getProject(params.id);
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(project, null, 2)
-          }]
-        };
+        try {
+          await this.rateLimiter.checkRateLimit('get-project');
+          SecurityValidator.validateInput(params);
+          SecurityValidator.validateParameterTypes(params, {
+            id: ['number', 'string']
+          });
+          const project = await this.redmineClient.getProject(params.id);
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(project, null, 2)
+            }]
+          };
+        } catch (error) {
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
+          throw sanitizedError;
+        }
       }
     );
     this.registeredTools.push('get-project');
@@ -192,13 +257,19 @@ export class RedmineMcpServer {
         description: 'List all users in Redmine'
       },
       async () => {
-        const result = await this.redmineClient.listUsers();
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }]
-        };
+        try {
+          await this.rateLimiter.checkRateLimit('list-users');
+          const result = await this.redmineClient.listUsers();
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(result, null, 2)
+            }]
+          };
+        } catch (error) {
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
+          throw sanitizedError;
+        }
       }
     );
     this.registeredTools.push('list-users');
@@ -212,13 +283,23 @@ export class RedmineMcpServer {
         description: 'Get details of a specific user'
       },
       async (params) => {
-        const user = await this.redmineClient.getUser(params.id);
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(user, null, 2)
-          }]
-        };
+        try {
+          await this.rateLimiter.checkRateLimit('get-user');
+          SecurityValidator.validateInput(params);
+          SecurityValidator.validateParameterTypes(params, {
+            id: 'number'
+          });
+          const user = await this.redmineClient.getUser(params.id);
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(user, null, 2)
+            }]
+          };
+        } catch (error) {
+          const sanitizedError = SecurityValidator.sanitizeErrorMessage(error as Error);
+          throw sanitizedError;
+        }
       }
     );
     this.registeredTools.push('get-user');
@@ -234,6 +315,10 @@ export class RedmineMcpServer {
 
   getRegisteredTools(): string[] {
     return [...this.registeredTools];
+  }
+
+  getRateLimiter(): RateLimiter {
+    return this.rateLimiter;
   }
 
   async start(): Promise<void> {
