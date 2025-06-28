@@ -2,6 +2,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { RedmineClient } from './redmine-client.js';
 import { RedmineConfig, RedmineIssue } from './types.js';
+import { ValidationError } from './validation.js';
+import { logger } from './logger.js';
 
 export class RedmineMcpServer {
   private config: RedmineConfig;
@@ -18,6 +20,7 @@ export class RedmineMcpServer {
       version: '1.0.0'
     });
     this.registerTools();
+    logger.info('Redmine MCP Server initialized');
   }
 
   private validateConfig(config: RedmineConfig): void {
@@ -48,13 +51,23 @@ export class RedmineMcpServer {
         description: 'List issues from Redmine with optional filtering'
       },
       async (params) => {
-        const result = await this.redmineClient.listIssues(params);
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(result, null, 2)
-          }]
-        };
+        try {
+          logger.debug('Executing list-issues tool', { params });
+          const result = await this.redmineClient.listIssues(params);
+          logger.info(`Listed ${result.issues.length} issues`);
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(result, null, 2)
+            }]
+          };
+        } catch (error) {
+          logger.error('Error in list-issues tool', error as Error);
+          if (error instanceof ValidationError) {
+            throw new Error(`Validation error: ${error.message}`);
+          }
+          throw error;
+        }
       }
     );
     this.registeredTools.push('list-issues');
@@ -68,13 +81,23 @@ export class RedmineMcpServer {
         description: 'Create a new issue in Redmine'
       },
       async (params) => {
-        const issue = await this.redmineClient.createIssue(params as Omit<RedmineIssue, 'id'>);
-        return {
-          content: [{
-            type: 'text',
-            text: JSON.stringify(issue, null, 2)
-          }]
-        };
+        try {
+          logger.debug('Executing create-issue tool', { params });
+          const issue = await this.redmineClient.createIssue(params as Omit<RedmineIssue, 'id'>);
+          logger.info(`Created issue ${issue.id}: ${issue.subject}`);
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(issue, null, 2)
+            }]
+          };
+        } catch (error) {
+          logger.error('Error in create-issue tool', error as Error);
+          if (error instanceof ValidationError) {
+            throw new Error(`Validation error: ${error.message}`);
+          }
+          throw error;
+        }
       }
     );
     this.registeredTools.push('create-issue');
@@ -214,11 +237,25 @@ export class RedmineMcpServer {
   }
 
   async start(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.mcpServer.connect(transport);
+    try {
+      logger.info('Starting Redmine MCP Server');
+      const transport = new StdioServerTransport();
+      await this.mcpServer.connect(transport);
+      logger.info('Redmine MCP Server started successfully');
+    } catch (error) {
+      logger.error('Failed to start Redmine MCP Server', error as Error);
+      throw error;
+    }
   }
 
   async stop(): Promise<void> {
-    await this.mcpServer.close();
+    try {
+      logger.info('Stopping Redmine MCP Server');
+      await this.mcpServer.close();
+      logger.info('Redmine MCP Server stopped successfully');
+    } catch (error) {
+      logger.error('Error stopping Redmine MCP Server', error as Error);
+      throw error;
+    }
   }
 }

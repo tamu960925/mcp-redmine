@@ -9,6 +9,7 @@ import {
   ProjectListResponse,
   UserListResponse
 } from './types.js';
+import { validateIssueData, validateId, validatePaginationParams } from './validation.js';
 
 export class RedmineClient {
   private config: RedmineConfig;
@@ -89,21 +90,36 @@ export class RedmineClient {
   }
 
   async listIssues(params: IssueListParams = {}): Promise<IssueListResponse> {
+    validatePaginationParams(params);
+    if (params.project_id !== undefined) {
+      validateId(params.project_id, 'project_id');
+    }
+    if (params.assigned_to_id !== undefined) {
+      validateId(params.assigned_to_id, 'assigned_to_id');
+    }
+    if (params.parent_id !== undefined) {
+      validateId(params.parent_id, 'parent_id');
+    }
+    
     const response = await this.httpClient.get('/issues.json', { params });
     return response.data;
   }
 
   async getIssue(id: number): Promise<RedmineIssue> {
+    validateId(id, 'id');
     const response = await this.httpClient.get(`/issues/${id}.json`);
     return response.data.issue;
   }
 
   async createIssue(issue: Omit<RedmineIssue, 'id'>): Promise<RedmineIssue> {
+    validateIssueData(issue);
     const response = await this.httpClient.post('/issues.json', { issue });
     return response.data.issue;
   }
 
   async updateIssue(id: number, issue: Partial<RedmineIssue>): Promise<RedmineIssue> {
+    validateId(id, 'id');
+    validateIssueData(issue);
     const response = await this.httpClient.put(`/issues/${id}.json`, { issue });
     return response.data.issue;
   }
@@ -114,6 +130,7 @@ export class RedmineClient {
   }
 
   async getProject(id: number | string): Promise<RedmineProject> {
+    validateId(id, 'id');
     const response = await this.httpClient.get(`/projects/${id}.json`);
     return response.data.project;
   }
@@ -124,6 +141,7 @@ export class RedmineClient {
   }
 
   async getUser(id: number): Promise<RedmineUser> {
+    validateId(id, 'id');
     const response = await this.httpClient.get(`/users/${id}.json`);
     return response.data.user;
   }
