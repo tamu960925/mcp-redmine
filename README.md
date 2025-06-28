@@ -40,7 +40,22 @@ npm run dev
 npm run build
 export REDMINE_BASE_URL="https://your-redmine-instance.com"
 export REDMINE_API_KEY="your-api-key-here"
-node dist/index.js
+npm start
+```
+
+### Production Deployment
+
+```bash
+# Build the project
+npm run build
+
+# Set production environment variables
+export REDMINE_BASE_URL="https://your-redmine-instance.com"
+export REDMINE_API_KEY="your-api-key-here"
+export LOG_LEVEL="info"
+
+# Start the server
+npm start
 ```
 
 ## Available Tools
@@ -83,6 +98,12 @@ node dist/index.js
 npm test
 ```
 
+### Running Tests with Coverage
+
+```bash
+npm run test:coverage
+```
+
 ### Running in Watch Mode
 
 ```bash
@@ -99,6 +120,12 @@ npm run lint
 
 ```bash
 npm run typecheck
+```
+
+### Clean Build Directory
+
+```bash
+npm run clean
 ```
 
 ## API Reference
@@ -137,6 +164,24 @@ The server provides comprehensive error handling for common scenarios:
 - **Validation errors (422)**: Invalid data provided
 - **Server errors (500)**: Internal server issues
 - **Network errors**: Connection timeouts and network issues
+- **Input validation**: Client-side validation with detailed error messages
+
+## Logging
+
+The server includes structured logging with configurable levels:
+
+- **DEBUG**: Detailed execution information and request/response data
+- **INFO**: General operational information (default)
+- **WARN**: Warning conditions that don't affect operation
+- **ERROR**: Error conditions that require attention
+
+Configure the log level using the `LOG_LEVEL` environment variable:
+
+```bash
+export LOG_LEVEL="debug"  # For development
+export LOG_LEVEL="info"   # For production (default)
+export LOG_LEVEL="error"  # For minimal logging
+```
 
 ## Contributing
 
