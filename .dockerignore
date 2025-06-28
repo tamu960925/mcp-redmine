@@ -2,11 +2,12 @@
 node_modules
 
 # Development files
-src
 *.test.ts
 *.test.js
 jest.config.js
-tsconfig.json
+# tsconfig.json - needed for build
+# src - needed for build
+# eslint.config.js - needed for build
 
 # Git and version control
 .git

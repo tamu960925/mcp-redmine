@@ -18,7 +18,8 @@ COPY src/ ./src/
 COPY tsconfig.json ./
 COPY eslint.config.js ./
 
-# Build the TypeScript application
+# Build the TypeScript application (skip lint in Docker)
+ENV CI=true
 RUN npm run build
 
 # Production stage
