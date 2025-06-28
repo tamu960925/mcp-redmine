@@ -1,6 +1,10 @@
 # Redmine MCP Server
 
-A Model Context Protocol (MCP) server that provides integration with Redmine project management software. This server allows AI assistants to interact with Redmine instances to manage issues, projects, and users.
+[![CI](https://github.com/tamu960925/mcp-redmine/workflows/CI/badge.svg)](https://github.com/tamu960925/mcp-redmine/actions)
+[![Docker Build](https://github.com/tamu960925/mcp-redmine/workflows/Docker%20Build/badge.svg)](https://github.com/tamu960925/mcp-redmine/actions)
+[![CodeQL](https://github.com/tamu960925/mcp-redmine/workflows/CodeQL/badge.svg)](https://github.com/tamu960925/mcp-redmine/actions)
+
+A Model Context Protocol (MCP) server for Redmine integration, built with TypeScript following TDD methodology. This server allows AI assistants to interact with Redmine instances to manage issues, projects, and users with comprehensive security and monitoring features.
 
 ## Features
 

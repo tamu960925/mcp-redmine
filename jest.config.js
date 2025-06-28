@@ -7,6 +7,8 @@ export default {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  // Skip Docker integration tests in CI environment
+  testPathIgnorePatterns: process.env.SKIP_DOCKER_TESTS ? ['.*docker.*test\\.ts$'] : [],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       useESM: true
