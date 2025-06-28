@@ -107,14 +107,14 @@ describe('Error Handling Tests', () => {
           baseUrl: '',
           apiKey: 'test-key'
         });
-      }).toThrow('baseUrl is required');
+      }).toThrow('Configuration validation failed');
 
       expect(() => {
         new RedmineMcpServer({
           baseUrl: 'https://test.redmine.org',
           apiKey: ''
         });
-      }).toThrow('API key cannot be empty');
+      }).toThrow('Configuration validation failed');
     });
 
     it('should handle RedmineClient errors in tools', async () => {

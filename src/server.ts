@@ -19,7 +19,7 @@ export class RedmineMcpServer {
   constructor(config: RedmineConfig) {
     // Use ConfigValidator for comprehensive validation
     this.config = ConfigValidator.validateOrThrow(config);
-    this.redmineClient = new RedmineClient(config);
+    this.redmineClient = new RedmineClient(this.config);
     this.mcpServer = new McpServer({
       name: 'redmine-mcp-server',
       version: '1.0.0'

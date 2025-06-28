@@ -34,7 +34,7 @@ describe('MCP Integration Tests', () => {
 
     it('should register all required tools', () => {
       const tools = server.getRegisteredTools();
-      expect(tools).toHaveLength(8);
+      expect(tools).toHaveLength(10);
       expect(tools).toEqual([
         'list-issues',
         'create-issue',
@@ -43,7 +43,9 @@ describe('MCP Integration Tests', () => {
         'list-projects',
         'get-project',
         'list-users',
-        'get-user'
+        'get-user',
+        'health-check',
+        'system-metrics'
       ]);
     });
 
@@ -53,14 +55,14 @@ describe('MCP Integration Tests', () => {
           baseUrl: '',
           apiKey: 'test-key'
         });
-      }).toThrow('baseUrl is required');
+      }).toThrow('Configuration validation failed');
 
       expect(() => {
         new RedmineMcpServer({
           baseUrl: 'https://test.redmine.org',
           apiKey: ''
         });
-      }).toThrow('API key cannot be empty');
+      }).toThrow('Configuration validation failed');
     });
   });
 
@@ -194,7 +196,8 @@ describe('MCP Integration Tests', () => {
       const config = server.getConfig();
       expect(config).toEqual({
         baseUrl: 'https://test.redmine.org',
-        apiKey: 'test-key'
+        apiKey: 'test-key',
+        logLevel: 'info'
       });
       
       // Ensure it's a copy, not the original
