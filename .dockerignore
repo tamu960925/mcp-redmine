@@ -1,13 +1,10 @@
 # Node modules - will be installed in container
 node_modules
 
-# Development files
-*.test.ts
-*.test.js
-jest.config.js
-# tsconfig.json - needed for build
-# src - needed for build
-# eslint.config.js - needed for build
+# Test files only
+**/*.test.ts
+**/*.test.js
+**/__tests__/**
 
 # Git and version control
 .git
